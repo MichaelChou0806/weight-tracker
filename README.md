@@ -18,7 +18,7 @@ A comprehensive weight tracking application that allows multiple users to track 
 
 ## Live Demo
 
-Visit: [https://yourusername.github.io/weight-tracker](https://yourusername.github.io/weight-tracker)
+Visit: https://michaelchou0806.github.io/weight-tracker/
 
 ## Setup Instructions
 
