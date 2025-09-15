@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weight Tracking System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 30px; text-align: center; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .main-content { padding: 30px; }
+        
+        .chart-section { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; margin-bottom: 30px; }
+        .chart-container { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); min-height: 500px; }
+        .chart-container h2 { color: #333; margin-bottom: 20px; text-align: center; }
+        
+        .stats-panel { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .stats-panel h3 { color: #333; margin-bottom: 15px; text-align: center; font-size: 1.2em; }
+        
+        .chart-controls { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+        .chart-controls h4 { margin-bottom: 10px; color: #555; }
+        .control-group { display: flex; flex-wrap: wrap; gap: 15px; }
+        .control-group label { display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 0.9em; }
+        .control-group input[type="checkbox"] { transform: scale(1.2); }
+        
+        .user-selector { margin-bottom: 20px; }
+        .user-selector select { width: 100%; padding: 10px; border: 2px solid #e1e5e9; border-radius: 8px; }
+        
+        .stat-card { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; text-align: center; }
+        .stat-card.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .stat-card.green { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+        .stat-card.orange { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+        .stat-card.purple { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #333; }
+        
+        .stat-value { font-size: 1.5em; font-weight: bold; }
+        .stat-label { font-size: 0.9em; opacity: 0.9; }
+        
+        .detailed-stats { margin-top: 20px; }
+        .detailed-stats h4 { color: #333; margin-bottom: 10px; }
+        .detailed-stats p { margin-bottom: 8px; color: #666; font-size: 0.9em; }
+        
+        .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .login-card, .admin-card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); border-top: 4px solid #4facfe; }
+        .admin-card { border-top-color: #ff6b6b; }
+        .card-title { font-size: 1.3em; margin-bottom: 20px; color: #333; text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #555; font-weight: 500; }
+        input, select { width: 100%; padding: 12px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 16px; transition: border-color 0.3s; }
+        input:focus, select:focus { outline: none; border-color: #4facfe; }
+        .btn { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; border: none; padding: 12px 25px; border-radius: 8px; font-size: 16px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; width: 100%; margin-top: 10px; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(79, 172, 254, 0.4); }
+        .btn:disabled { cursor: not-allowed; transform: none; opacity: 0.6; }
+        .btn-admin { background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%); }
+        .btn-admin:hover { box-shadow: 0 8px 16px rgba(255, 107, 107, 0.4); }
+        .status { margin-top: 15px; padding: 10px; border-radius: 8px; text-align: center; font-weight: 500; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .legend { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 10px; }
+        .legend-item { display: flex; align-items: center; gap: 8px; }
+        .legend-color { width: 20px; height: 20px; border-radius: 50%; }
+        #chart { height: 400px; max-height: 400px; width: 100%; }
+        .loading { text-align: center; color: #666; font-style: italic; padding: 40px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Weight Tracking System</h1>
+            <p>Track your weight loss journey with friends & detailed analytics</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="chart-section">
+                <div class="chart-container">
+                    <h2>Weight Progress Chart</h2>
+                    
+                    <div class="chart-controls">
+                        <h4>Display Options</h4>
+                        <div class="control-group">
+                            <label><input type="checkbox" id="showWeightLoss"> Show Weight Loss Labels</label>
+                            <label><input type="checkbox" id="showTrendLine"> Show Trend Line</label>
+                        </div>
+                    </div>
+                    
+                    <div id="loadingChart" class="loading">Loading chart data...</div>
+                    <div id="noDataMessage" class="loading" style="display: none;">No weight data available. Add some records to see the chart!</div>
+                    <canvas id="chart" style="display: none;"></canvas>
+                    <div id="legend" class="legend" style="display: none;"></div>
+                </div>
+                
+                <div class="stats-panel">
+                    <h3>Statistics & Analytics</h3>
+                    
+                    <div class="user-selector">
+                        <select id="statsUserSelect">
+                            <option value="">Select user for detailed stats</option>
+                        </select>
+                    </div>
+                    
+                    <div id="statsContent">
+                        <div class="stat-card blue">
+                            <div class="stat-value" id="totalUsers">0</div>
+                            <div class="stat-label">Active Users</div>
+                        </div>
+                        
+                        <div class="stat-card green">
+                            <div class="stat-value" id="totalRecords">0</div>
+                            <div class="stat-label">Total Records</div>
+                        </div>
+                        
+                        <div class="stat-card orange">
+                            <div class="stat-value" id="avgWeightLoss">0 kg</div>
+                            <div class="stat-label">Average Weight Loss</div>
+                        </div>
+                    </div>
+                    
+                    <div id="userDetailedStats" style="display: none;">
+                        <div class="detailed-stats">
+                            <h4>Personal Statistics</h4>
+                            <p><strong>Total Weight Loss:</strong> <span id="personalTotalLoss">0 kg</span></p>
+                            <p><strong>Weight Loss Percentage:</strong> <span id="personalLossPercent">0%</span></p>
+                            <p><strong>Days Tracking:</strong> <span id="personalDays">0</span></p>
+                            <p><strong>Average Daily Loss:</strong> <span id="personalDailyAvg">0 kg</span></p>
+                            <p><strong>Average Weekly Loss:</strong> <span id="personalWeeklyAvg">0 kg</span></p>
+                            <p><strong>Average Monthly Loss:</strong> <span id="personalMonthlyAvg">0 kg</span></p>
+                            <p><strong>Consistency Score:</strong> <span id="personalConsistency">N/A</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <div class="login-card">
+                    <h3 class="card-title">Record Weight</h3>
+                    <div class="form-group">
+                        <label for="username">用戶名稱</label>
+                        <select id="username"><option value="">選擇用戶</option></select>
+                    </div>
+                    <div class="form-group" id="newUserGroup" style="display: none;">
+                        <label for="newUsername">新用戶名稱</label>
+                        <input type="text" id="newUsername" placeholder="輸入新用戶名稱">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">密碼 (4位數字)</label>
+                        <input type="password" id="password" maxlength="4" placeholder="輸入4位數密碼">
+                    </div>
+                    <div class="form-group">
+                        <label for="weight">體重 (kg)</label>
+                        <input type="number" id="weight" step="0.1" min="1" max="500" placeholder="輸入當前體重">
+                    </div>
+                    <button class="btn" onclick="submitWeight()">Submit Weight</button>
+                    <div id="userStatus" class="status" style="display: none;"></div>
+                </div>
+                
+                <div class="admin-card">
+                    <h3 class="card-title">Admin Panel</h3>
+                    <div class="form-group">
+                        <label for="adminPassword">管理員密碼</label>
+                        <input type="password" id="adminPassword" placeholder="輸入管理員密碼">
+                    </div>
+                    <button class="btn btn-admin" onclick="clearAllData()">Clear All Data</button>
+                    <button class="btn btn-admin" onclick="exportData()">Export Data</button>
+                    <div id="adminStatus" class="status" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwe7cGuRy497_M6tI_XBX3Km7EEghn8ckcyXT3VJnL5p19rIYGLXuMoGUy1ablCudduow/exec';
+        const COLORS = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'];
+        let chart = null;
+        let chartData = {};
+        let showWeightLoss = false;
+        let showTrendLine = false;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const usernameSelect = document.getElementById('username');
+            usernameSelect.innerHTML = '<option value="">選擇用戶</option><option value="new">新增用戶</option>';
+            usernameSelect.addEventListener('change', function() {
+                const newUserGroup = document.getElementById('newUserGroup');
+                if (this.value === 'new') {
+                    newUserGroup.style.display = 'block';
+                } else {
+                    newUserGroup.style.display = 'none';
+                    document.getElementById('newUsername').value = '';
+                }
+            });
+
+            // 添加控制面板事件監聽器
+            document.getElementById('showWeightLoss').addEventListener('change', updateChart);
+            document.getElementById('showTrendLine').addEventListener('change', updateChart);
+            document.getElementById('statsUserSelect').addEventListener('change', updateUserStats);
+            
+            loadUsers();
+            loadChartData();
+        });
+
+        async function loadUsers() {
+            try {
+                const response = await fetch(SCRIPT_URL + '?action=getUsers');
+                const result = await response.json();
+                if (result.success) {
+                    // 更新主要用戶選擇器
+                    const select = document.getElementById('username');
+                    select.innerHTML = '<option value="">選擇用戶</option>';
+                    
+                    // 更新統計用戶選擇器
+                    const statsSelect = document.getElementById('statsUserSelect');
+                    statsSelect.innerHTML = '<option value="">Select user for detailed stats</option>';
+                    
+                    if (result.users && result.users.length > 0) {
+                        result.users.forEach(user => {
+                            const option1 = document.createElement('option');
+                            option1.value = user;
+                            option1.textContent = user;
+                            select.appendChild(option1);
+                            
+                            const option2 = document.createElement('option');
+                            option2.value = user;
+                            option2.textContent = user;
+                            statsSelect.appendChild(option2);
+                        });
+                    }
+                    
+                    const newOption = document.createElement('option');
+                    newOption.value = 'new';
+                    newOption.textContent = '新增用戶';
+                    select.appendChild(newOption);
+                }
+            } catch (error) {
+                console.error('載入用戶失敗:', error);
+            }
+        }
+
+        async function loadChartData() {
+            try {
+                const response = await fetch(SCRIPT_URL + '?action=getChartData');
+                const result = await response.json();
+                document.getElementById('loadingChart').style.display = 'none';
+                
+                if (result.success && result.data && Object.keys(result.data).length > 0) {
+                    chartData = result.data;
+                    document.getElementById('chart').style.display = 'block';
+                    document.getElementById('legend').style.display = 'flex';
+                    document.getElementById('noDataMessage').style.display = 'none';
+                    createChart(chartData);
+                    updateGlobalStats(chartData);
+                } else {
+                    chartData = {};
+                    document.getElementById('chart').style.display = 'none';
+                    document.getElementById('legend').style.display = 'none';
+                    document.getElementById('noDataMessage').style.display = 'block';
+                    updateGlobalStats({});
+                }
+            } catch (error) {
+                console.error('載入圖表失敗:', error);
+            }
+        }
+
+        // 計算線性回歸趨勢線
+        function calculateTrendLine(data) {
+            if (data.length < 2) return null;
+            
+            const n = data.length;
+            let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+            
+            data.forEach((point, index) => {
+                sumX += index;
+                sumY += point.y;
+                sumXY += index * point.y;
+                sumXX += index * index;
+            });
+            
+            const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+            
+            return data.map((point, index) => ({
+                x: point.x,
+                y: slope * index + intercept
+            }));
+        }
+
+        function createChart(data) {
+            if (!data || Object.keys(data).length === 0) return;
+            const ctx = document.getElementById('chart').getContext('2d');
+            if (chart) { chart.destroy(); chart = null; }
+            
+            const datasets = [];
+            const legendContainer = document.getElementById('legend');
+            legendContainer.innerHTML = '';
+            let colorIndex = 0;
+            let allLabels = [];
+
+            // 原始數據線
+            Object.keys(data).forEach(username => {
+                const color = COLORS[colorIndex % COLORS.length];
+                const userData = data[username];
+                if (userData && userData.length > 0) {
+                    const initialWeight = userData[0].weight; // 獲取初始體重
+                    const chartData = userData.map(point => {
+                        const dateStr = new Date(point.date).toLocaleDateString('zh-TW');
+                        if (!allLabels.includes(dateStr)) allLabels.push(dateStr);
+                        return { x: dateStr, y: point.weight };
+                    });
+                    
+                    datasets.push({
+                        label: username,
+                        data: chartData,
+                        borderColor: color,
+                        backgroundColor: color,
+                        pointBackgroundColor: color,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 3,
+                        pointRadius: 8,
+                        pointHoverRadius: 10,
+                        tension: 0.3,
+                        fill: false,
+                        borderWidth: 4,
+                        initialWeight: initialWeight // 保存初始體重供插件使用
+                    });
+
+                    // 趨勢線 - 只有當 showTrendLine 被選中時才添加
+                    if (showTrendLine && chartData.length > 1) {
+                        const trendData = calculateTrendLine(chartData);
+                        if (trendData) {
+                            datasets.push({
+                                label: `${username} Trend`,
+                                data: trendData,
+                                borderColor: color,
+                                backgroundColor: 'transparent',
+                                pointRadius: 0,
+                                pointHoverRadius: 0,
+                                tension: 0,
+                                fill: false,
+                                borderWidth: 2,
+                                borderDash: [10, 5], // 虛線樣式
+                                hidden: false
+                            });
+                        }
+                    }
+                    
+                    const legendItem = document.createElement('div');
+                    legendItem.className = 'legend-item';
+                    legendItem.innerHTML = `<div class="legend-color" style="background-color: ${color}"></div><span>${username}</span>`;
+                    legendContainer.appendChild(legendItem);
+                    colorIndex++;
+                }
+            });
+
+            allLabels.sort((a, b) => new Date(a) - new Date(b));
+
+            if (datasets.length > 0) {
+                try {
+                    chart = new Chart(ctx, {
+                        type: 'line',
+                        data: { labels: allLabels, datasets: datasets },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: false,
+                            onClick: handleChartClick,
+                            plugins: {
+                                title: { display: true, text: 'Weight Progress Over Time', font: { size: 16, weight: 'bold' } },
+                                legend: { display: false },
+                                tooltip: {
+                                    filter: function(tooltipItem) {
+                                        // 只顯示原始數據的 tooltip，隱藏趨勢線的
+                                        return !tooltipItem.dataset.label.includes('Trend');
+                                    },
+                                    callbacks: {
+                                        label: function(context) {
+                                            if (!context.dataset.label.includes('Trend')) {
+                                                const weight = context.parsed.y;
+                                                const initialWeight = context.dataset.initialWeight;
+                                                const weightLoss = initialWeight - weight;
+                                                return `${context.dataset.label}: ${weight}kg (${weightLoss >= 0 ? '-' : '+'}${Math.abs(weightLoss).toFixed(1)}kg)`;
+                                            }
+                                            return '';
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: { title: { display: true, text: 'Date' }, grid: { color: 'rgba(0,0,0,0.1)' } },
+                                y: { title: { display: true, text: 'Weight (kg)' }, grid: { color: 'rgba(0,0,0,0.1)' }, beginAtZero: false }
+                            }
+                        },
+                        plugins: [{
+                            id: 'weightLossLabels',
+                            afterDatasetsDraw(chart) {
+                                if (!showWeightLoss) return;
+                                
+                                const ctx = chart.ctx;
+                                ctx.save();
+                                ctx.font = 'bold 11px Arial';
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'bottom';
+                                
+                                const labelPositions = []; // 追蹤標籤位置以避免重疊
+                                
+                                chart.data.datasets.forEach((dataset, datasetIndex) => {
+                                    if (dataset.label.includes('Trend')) return; // 跳過趨勢線
+                                    
+                                    const meta = chart.getDatasetMeta(datasetIndex);
+                                    const initialWeight = dataset.initialWeight;
+                                    
+                                    meta.data.forEach((point, index) => {
+                                        const weight = dataset.data[index].y;
+                                        const weightLoss = initialWeight - weight;
+                                        
+                                        if (Math.abs(weightLoss) >= 0.1) { // 只顯示減重超過0.1kg的標籤
+                                            const x = point.x;
+                                            let y = point.y - 20; // 預設標籤位置
+                                            
+                                            // 檢查是否與其他標籤重疊，如果重疊則調整位置
+                                            let attempts = 0;
+                                            while (attempts < 8) {
+                                                let overlapping = false;
+                                                for (let pos of labelPositions) {
+                                                    if (Math.abs(pos.x - x) < 40 && Math.abs(pos.y - y) < 18) {
+                                                        overlapping = true;
+                                                        break;
+                                                    }
+                                                }
+                                                if (!overlapping) break;
+                                                y -= 18; // 向上移動避免重疊
+                                                attempts++;
+                                            }
+                                            
+                                            labelPositions.push({ x, y });
+                                            
+                                            // 設置標籤顏色
+                                            ctx.fillStyle = weightLoss >= 0 ? '#28a745' : '#dc3545';
+                                            ctx.strokeStyle = 'white';
+                                            ctx.lineWidth = 3;
+                                            
+                                            // 繪製標籤文字
+                                            const label = `${weightLoss >= 0 ? '-' : '+'}${Math.abs(weightLoss).toFixed(1)}`;
+                                            
+                                            // 添加白色邊框增加可讀性
+                                            ctx.strokeText(label, x, y);
+                                            ctx.fillText(label, x, y);
+                                        }
+                                    });
+                                });
+                                
+                                ctx.restore();
+                            }
+                        }]
+                    });
+                } catch (error) {
+                    console.error('圖表創建失敗:', error);
+                }
+            }
+        }
+
+        function updateChart() {
+            // 更新顯示選項
+            showWeightLoss = document.getElementById('showWeightLoss').checked;
+            showTrendLine = document.getElementById('showTrendLine').checked;
+            
+            // 重新創建圖表以應用新設置
+            if (chartData && Object.keys(chartData).length > 0) {
+                createChart(chartData);
+            }
+        }
+
+        function handleChartClick(event, elements) {
+            if (elements.length > 0) {
+                const element = elements[0];
+                const datasetIndex = element.datasetIndex;
+                const dataset = chart.data.datasets[datasetIndex];
+                const username = dataset.label.replace(' Trend', '');
+                
+                // 更新統計選擇器並顯示該用戶的詳細統計
+                document.getElementById('statsUserSelect').value = username;
+                updateUserStats();
+            }
+        }
+
+        function updateGlobalStats(data) {
+            const users = Object.keys(data);
+            const totalUsers = users.length;
+            let totalRecords = 0;
+            let totalWeightLoss = 0;
+
+            users.forEach(username => {
+                const userData = data[username];
+                if (userData && userData.length > 0) {
+                    totalRecords += userData.length;
+                    const initWeight = userData[0].weight;
+                    const latestWeight = userData[userData.length - 1].weight;
+                    const weightLoss = initWeight - latestWeight;
+                    totalWeightLoss += weightLoss;
+                }
+            });
+
+            document.getElementById('totalUsers').textContent = totalUsers;
+            document.getElementById('totalRecords').textContent = totalRecords;
+            document.getElementById('avgWeightLoss').textContent = totalUsers > 0 ? (totalWeightLoss / totalUsers).toFixed(1) + ' kg' : '0 kg';
+        }
+
+        function updateUserStats() {
+            const selectedUser = document.getElementById('statsUserSelect').value;
+            const detailedStats = document.getElementById('userDetailedStats');
+            
+            if (!selectedUser || !chartData[selectedUser]) {
+                detailedStats.style.display = 'none';
+                return;
+            }
+
+            detailedStats.style.display = 'block';
+            const userData = chartData[selectedUser];
+            
+            if (userData.length === 0) return;
+
+            // 計算各種統計
+            const initWeight = userData[0].weight;
+            const latestWeight = userData[userData.length - 1].weight;
+            const totalWeightLoss = initWeight - latestWeight;
+            const weightLossPercent = ((totalWeightLoss / initWeight) * 100);
+            
+            // 計算天數
+            const firstDate = new Date(userData[0].date);
+            const lastDate = new Date(userData[userData.length - 1].date);
+            const daysDiff = Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24)) + 1;
+            
+            // 計算平均
+            const avgDaily = daysDiff > 0 ? totalWeightLoss / daysDiff : 0;
+            const avgWeekly = avgDaily * 7;
+            const avgMonthly = avgDaily * 30;
+            
+            // 計算一致性分數
+            let consistencyScore = 'N/A';
+            if (userData.length > 1) {
+                const weightChanges = [];
+                for (let i = 1; i < userData.length; i++) {
+                    weightChanges.push(userData[i-1].weight - userData[i].weight);
+                }
+                const positiveChanges = weightChanges.filter(change => change > 0).length;
+                consistencyScore = Math.round((positiveChanges / weightChanges.length) * 100) + '%';
+            }
+            
+            // 更新顯示
+            document.getElementById('personalTotalLoss').textContent = totalWeightLoss.toFixed(1) + ' kg';
+            document.getElementById('personalLossPercent').textContent = weightLossPercent.toFixed(1) + '%';
+            document.getElementById('personalDays').textContent = daysDiff;
+            document.getElementById('personalDailyAvg').textContent = avgDaily.toFixed(3) + ' kg';
+            document.getElementById('personalWeeklyAvg').textContent = avgWeekly.toFixed(2) + ' kg';
+            document.getElementById('personalMonthlyAvg').textContent = avgMonthly.toFixed(1) + ' kg';
+            document.getElementById('personalConsistency').textContent = consistencyScore;
+        }
+
+        async function submitWeight() {
+            const usernameSelect = document.getElementById('username');
+            const newUsername = document.getElementById('newUsername').value.trim();
+            const password = document.getElementById('password').value;
+            const weight = document.getElementById('weight').value;
+            const submitBtn = document.querySelector('.btn');
+            
+            let username = usernameSelect.value === 'new' ? newUsername : usernameSelect.value;
+            if (!username) { showStatus('userStatus', '請選擇或輸入用戶名稱', 'error'); return; }
+            if (!password || password.length !== 4 || !/^\d{4}$/.test(password)) { showStatus('userStatus', '請輸入4位數字密碼', 'error'); return; }
+            if (!weight || weight <= 0) { showStatus('userStatus', '請輸入有效的體重', 'error'); return; }
+            
+            submitBtn.textContent = 'Submitting...';
+            submitBtn.disabled = true;
+            
+            try {
+                const params = new URLSearchParams({ action: 'submitWeight', username, password, weight: parseFloat(weight) });
+                const response = await fetch(SCRIPT_URL + '?' + params.toString());
+                const result = await response.json();
+                
+                if (result.success) {
+                    showStatus('userStatus', result.message, 'success');
+                    document.getElementById('password').value = '';
+                    document.getElementById('weight').value = '';
+                    if (usernameSelect.value === 'new') {
+                        document.getElementById('newUsername').value = '';
+                        document.getElementById('newUserGroup').style.display = 'none';
+                        usernameSelect.value = '';
+                    }
+                    loadUsers();
+                    loadChartData();
+                } else {
+                    showStatus('userStatus', result.message, 'error');
+                }
+            } catch (error) {
+                showStatus('userStatus', '提交失敗，請重試', 'error');
+            } finally {
+                submitBtn.textContent = 'Submit Weight';
+                submitBtn.disabled = false;
+            }
+        }
+
+        async function clearAllData() {
+            const adminPassword = document.getElementById('adminPassword').value;
+            if (!adminPassword) { showStatus('adminStatus', '請輸入管理員密碼', 'error'); return; }
+            if (!confirm('確定要清除所有數據嗎？')) return;
+            
+            try {
+                const params = new URLSearchParams({ action: 'clearData', adminPassword });
+                const response = await fetch(SCRIPT_URL + '?' + params.toString());
+                const result = await response.json();
+                if (result.success) {
+                    showStatus('adminStatus', '所有數據已清除', 'success');
+                    loadUsers(); loadChartData();
+                } else {
+                    showStatus('adminStatus', result.message, 'error');
+                }
+            } catch (error) {
+                showStatus('adminStatus', '操作失敗', 'error');
+            }
+        }
+
+        async function exportData() {
+            const adminPassword = document.getElementById('adminPassword').value;
+            if (!adminPassword) { showStatus('adminStatus', '請輸入管理員密碼', 'error'); return; }
+            
+            try {
+                const params = new URLSearchParams({ action: 'exportData', adminPassword });
+                const response = await fetch(SCRIPT_URL + '?' + params.toString());
+                const result = await response.json();
+                if (result.success) {
+                    const blob = new Blob([result.csvData], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = 'weight_data.csv'; a.click();
+                    URL.revokeObjectURL(url);
+                    showStatus('adminStatus', '數據已匯出', 'success');
+                } else {
+                    showStatus('adminStatus', result.message, 'error');
+                }
+            } catch (error) {
+                showStatus('adminStatus', '操作失敗', 'error');
+            }
+        }
+
+        function showStatus(elementId, message, type) {
+            const statusElement = document.getElementById(elementId);
+            statusElement.textContent = message;
+            statusElement.className = `status ${type}`;
+            statusElement.style.display = 'block';
+            setTimeout(() => { statusElement.style.display = 'none'; }, 3000);
+        }
+    </script>
+</body>
+</html>
