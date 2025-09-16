@@ -642,8 +642,8 @@
                             <p><strong>Weight Loss Percentage:</strong> <span id="personalLossPercent">0%</span></p>
                             <p><strong>Days Tracking:</strong> <span id="personalDays">0</span></p>
                             <p><strong>Average Daily Loss:</strong> <span id="personalDailyAvg">0 kg</span></p>
-                            <p><strong>Average Weekly Loss:</strong> <span id="personalWeeklyAvg">0 kg</span></p>
-                            <p><strong>Average Monthly Loss:</strong> <span id="personalMonthlyAvg">0 kg</span></p>
+                            <p><strong>Projected Weekly Loss:</strong> <span id="personalWeeklyAvg">0 kg</span> <small id="weeklyNote"></small></p>
+                            <p><strong>Projected Monthly Loss:</strong> <span id="personalMonthlyAvg">0 kg</span> <small id="monthlyNote"></small></p>
                             <p><strong>Consistency Score:</strong> <span id="personalConsistency">N/A</span></p>
                         </div>
                     </div>
@@ -1077,12 +1077,19 @@
             // 計算天數
             const firstDate = new Date(userData[0].date);
             const lastDate = new Date(userData[userData.length - 1].date);
-            const daysDiff = Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24)) + 1;
+            const totalDays = Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24)) + 1; // 追蹤總天數
+            const activeDays = Math.max(1, Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24))); // 實際減重天數
             
-            // 計算平均
-            const avgDaily = daysDiff > 0 ? totalWeightLoss / daysDiff : 0;
-            const avgWeekly = avgDaily * 7;
-            const avgMonthly = avgDaily * 30;
+            // 計算平均 - 使用實際減重天數
+            const avgDaily = activeDays > 0 ? totalWeightLoss / activeDays : 0;
+            
+            // 週、月平均的更合理計算方式
+            const weeksTracked = activeDays / 7;
+            const monthsTracked = activeDays / 30;
+            
+            // 如果追蹤時間少於一週/月，用實際速率推算；否則用實際平均
+            const avgWeekly = weeksTracked >= 1 ? totalWeightLoss / weeksTracked : avgDaily * 7;
+            const avgMonthly = monthsTracked >= 1 ? totalWeightLoss / monthsTracked : avgDaily * 30;
             
             // 計算一致性分數
             let consistencyScore = 'N/A';
@@ -1095,14 +1102,34 @@
                 consistencyScore = Math.round((positiveChanges / weightChanges.length) * 100) + '%';
             }
             
-            // 更新顯示
+            // 更新顯示，添加註解
             document.getElementById('personalTotalLoss').textContent = totalWeightLoss.toFixed(1) + ' kg';
             document.getElementById('personalLossPercent').textContent = weightLossPercent.toFixed(1) + '%';
-            document.getElementById('personalDays').textContent = daysDiff;
+            document.getElementById('personalDays').textContent = totalDays;
             document.getElementById('personalDailyAvg').textContent = avgDaily.toFixed(3) + ' kg';
             document.getElementById('personalWeeklyAvg').textContent = avgWeekly.toFixed(2) + ' kg';
             document.getElementById('personalMonthlyAvg').textContent = avgMonthly.toFixed(1) + ' kg';
             document.getElementById('personalConsistency').textContent = consistencyScore;
+            
+            // 添加註解說明
+            const weeklyNote = document.getElementById('weeklyNote');
+            const monthlyNote = document.getElementById('monthlyNote');
+            
+            if (weeksTracked < 1) {
+                weeklyNote.textContent = '(estimated)';
+                weeklyNote.style.color = '#999';
+            } else {
+                weeklyNote.textContent = '(actual average)';
+                weeklyNote.style.color = '#666';
+            }
+            
+            if (monthsTracked < 1) {
+                monthlyNote.textContent = '(estimated)';
+                monthlyNote.style.color = '#999';
+            } else {
+                monthlyNote.textContent = '(actual average)';
+                monthlyNote.style.color = '#666';
+            }
         }
 
         async function submitWeight() {
